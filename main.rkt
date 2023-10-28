@@ -40,22 +40,32 @@
       [(eq? (car ops) x) #t]
       [else (f (cdr ops) x)])))
 
-(define (terms pattern term)
+(define (terms pattern expr)
   (cond
-    [(not (eq? (length pattern) (length term))) #f]
-    [else (let f ([acc '()] [p pattern] [t term])
+    [(not (eq? (length pattern) (length expr))) #f]
+    [else (let f ([acc (hash)] [p pattern] [e expr])
             (cond
               [(empty? p) acc]
               [(and (symbol? (car p)) (not (operator? (car p)))) (f
-                                                                  (append acc (list `(,(car p) ,(car t))))
+                                                                  (hash-set acc (car p) (car e))
                                                                   (cdr p)
-                                                                  (cdr t))]
-              [(and (number? (car p)) (eq? (car p) (car t))) (f acc (cdr p) (cdr t))]
-              [(and (operator? (car p)) (eq? (car p) (car t))) (f acc (cdr p) (cdr t))]
+                                                                  (cdr e))]
+              [(and (number? (car p)) (eq? (car p) (car e))) (f acc (cdr p) (cdr e))]
+              [(and (operator? (car p)) (eq? (car p) (car e))) (f acc (cdr p) (cdr e))]
               [else #f]
               ))]))
 
+(define (replace-term expr key value)
+  (map (lambda (x) (cond [(eq? x key) value]
+                         [(list? x) (replace-term x key value)]
+                         [else x])) expr))
+
+(define (replace-terms term-hash expr)
+  (hash-for-each term-hash (lambda (x y) (set! expr (replace-term expr x y))))
+  expr)
+
 (module+ test
-  (check-equal? (terms '(+ a b) '(+ 1 2)) '((a 1) (b 2))))
+  (check-equal? (terms '(+ a b) '(+ 1 2)) '#hash((a . 1) (b . 2)))
+  (check-equal? (replace-terms (terms '(+ a b) '(+ 1 2)) '(- a b)) '(- 1 2)))
 
 (module+ main)
